@@ -8,6 +8,13 @@ import datetime
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+# Simple reversible encoding for demonstration purposes
+def encode_data(data):
+    return ''.join(chr(ord(char) + 3) for char in data)
+
+def decode_data(data):
+    return ''.join(chr(ord(char) - 3) for char in data)
+
 # Initialize global variables
 mouse_movements = []
 key_press_times = []
@@ -43,19 +50,39 @@ def calculate_typing_speed():
     total_time = key_press_times[-1] - key_press_times[0]
     return len(key_press_times) / total_time if total_time > 0 else 0
 
-# Updated save_user_data to include time and date, and save every record history
-def save_user_data():
+# Enhanced the app to include more behavior metrics, session tracking, and export functionality for machine learning datasets
+
+def save_user_data(name, email, phone, age, address):
     global user_id_counter
+
+    # Ensure unique ID for behavior data
+    try:
+        existing_ids = set()
+        with open('behavior_data.csv', 'r') as file:
+            for line in file:
+                try:
+                    row = line.strip().split(',')
+                    if len(row) >= 1:  # Ensure the row has at least one column
+                        existing_ids.add(int(row[0]))
+                except ValueError:
+                    logging.warning(f"Skipping invalid row in behavior_data.csv: {line.strip()}")
+    except FileNotFoundError:
+        logging.warning("behavior_data.csv not found. Proceeding with an empty ID set.")
+
+    while user_id_counter in existing_ids:
+        user_id_counter += 1
 
     current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+    session_duration = end_session_timer()  # Calculate session duration
+
     user_data = {
         'ID': user_id_counter,
-        'Name': name_var.get(),
-        'Email': email_var.get(),
-        'Phone': phone_var.get(),
-        'Age': age_var.get(),
-        'Address': address_var.get(),
+        'Name': name,
+        'Email': email,
+        'Phone': phone,
+        'Age': age,
+        'Address': address,
         'Timestamp': current_time
     }
 
@@ -65,9 +92,12 @@ def save_user_data():
 
     behavior_data = {
         'ID': user_id_counter,
-        'Name': name_var.get(),
+        'Name': name,
         'Cursor Speed': cursor_speed,
         'Typing Speed': typing_speed,
+        'Mouse Clicks': len(mouse_movements),
+        'Key Presses': len(key_press_times),
+        'Session Duration': session_duration,
         'Human or Robot': 'Human' if is_human else 'Robot',
         'Timestamp': current_time
     }
@@ -78,17 +108,10 @@ def save_user_data():
     # Increment user ID for the next user
     user_id_counter += 1
 
-    # Clear the fields for the next user
-    name_var.set("")
-    email_var.set("")
-    phone_var.set("")
-    age_var.set("")
-    address_var.set("")
     mouse_movements.clear()
     key_press_times.clear()
 
-    logging.info("User data saved successfully")
-    messagebox.showinfo("Success", "User data saved. Ready for the next user!")
+    logging.info("User data saved successfully with enhanced behavior tracking")
 
 # Add session timer
 def start_session_timer():
@@ -135,6 +158,13 @@ def save_all_data():
     logging.info("All data and comparison report saved successfully")
     messagebox.showinfo("Success", "All data and comparison report saved successfully!")
 
+# Function to export dataset for machine learning
+
+def export_dataset():
+    df_behavior = pd.DataFrame(behavior_data_list)
+    df_behavior.to_csv('ml_behavior_dataset.csv', index=False)
+    logging.info("Dataset exported successfully for machine learning")
+
 # Create the main application window
 root = tk.Tk()
 root.title("User Details Form")
@@ -163,8 +193,9 @@ tk.Label(root, text="Address:").grid(row=4, column=0, padx=10, pady=10)
 tk.Entry(root, textvariable=address_var).grid(row=4, column=1, padx=10, pady=10)
 
 # Create buttons
-tk.Button(root, text="Save User", command=save_user_data).grid(row=5, column=0, columnspan=2, pady=10)
+tk.Button(root, text="Save User", command=lambda: save_user_data(name_var.get(), email_var.get(), phone_var.get(), age_var.get(), address_var.get())).grid(row=5, column=0, columnspan=2, pady=10)
 tk.Button(root, text="Save All Data", command=save_all_data).grid(row=6, column=0, columnspan=2, pady=10)
+tk.Button(root, text="Export Dataset", command=export_dataset).grid(row=7, column=0, columnspan=2, pady=10)
 
 # Bind mouse and keyboard events
 root.bind('<Motion>', track_mouse)
